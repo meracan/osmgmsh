@@ -13,7 +13,7 @@ def doc_example1():
       "maxDensity":10000,
       "shorelineGrowth":1.2,
       "simplification":{"isimplify":10,"buffer":1000,"fsimplify":10},
-      "defaultDomain":{"center":[-63.553987,44.627934],"radius":60,"density":10,"growth":1.2},
+      "defaultDomain":{"center":[-63.553987,44.627934],"radius":60,"density":[[-63.553987,44.627934,10,1.2]]},
       
       "input":{
         "osm":"../data/water-polygons-split-4326.zip",
@@ -22,13 +22,19 @@ def doc_example1():
     }
   
   osm=OSM(obj)
+  # osm.densityFineZone.geo
+  # osm.densityCoarseZone.geo
   # osm.osmFine.geo
   # osm.osmCoarse.geo
-  # osm.osmCoarse1.geo
+  # osm.osmCoarseZone.geo
+  # osm.osmCoarseS.geo
   # osm.osmDomain.geo
   # osm.osmSimplify.geo
   # osm.osmResample.geo
-  osm.osmMesh.proj
+  # osm.osmMesh.geo
+  # osm.osmMeshBoundaries.geo
+  # osm.osmMeshEdges.geo
+  osm.meshmbtiles.geo
 
 def doc_example2():
   obj = {
@@ -63,7 +69,7 @@ def doc_example2():
   # osm.osmCoarseS.geo #-> 2min
   # osm.osmDomain.geo
   # osm.osmSimplify.geo #->1min
-  osm.osmResample.geo
+  # osm.osmResample.geo
   
   
 if __name__ == "__main__":

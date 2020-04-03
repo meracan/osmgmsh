@@ -2,6 +2,7 @@ import numpy as np
 import subprocess
 import os
 from ..gmsh import GMSH
+from mshapely import DF
 
 def createMSH(input,output):
   # command = "gmsh {0} -2 -format msh2 -algo frontal -smooth {2} -o {1}.msh".format(file,name,smooth)
@@ -12,7 +13,7 @@ def createMSH(input,output):
   subprocess.call(command, shell=True)
   return GMSH.read(output)
     
-def createGEO(geo,path,density,*args,**kwargs):
+def createGEO(geo,path,df,*args,**kwargs):
   output = os.path.splitext(path)[0]+".geo"
   points=geo.np
   strPoints = ""
@@ -22,6 +23,14 @@ def createGEO(geo,path,density,*args,**kwargs):
   PID = 1
   LID = 1
   LLID = 1
+  
+  # Create density points that are not in shoreline
+  dp = df.dp
+  xy=dp[dp[:,4]==0,:2]
+  for p0 in xy:
+    strPoints += "Point({0:n}) = {{{1},{2},{3},{4}}};\n".format(PID, p0[0], p0[1], 0, 100)
+    PID +=1
+    
   for ipolygon in np.unique(points[:, 0]):
     subpoints = points[points[:, 0] == ipolygon]
     
@@ -52,26 +61,39 @@ def createGEO(geo,path,density,*args,**kwargs):
     geofile.write("{0}\n".format(strLines))
     geofile.write("{0}\n".format(strLoop))
     geofile.write("{0}\n".format(strSurface))
-    geofile.write("{0}\n".format(getAttractors(density,*args,**kwargs)))
+    geofile.write("{0}\n".format(getAttractors(points,df)))
   
   
   return output
 
   
-def getAttractors(points,minDensity=10,maxDensity=10000):
+def getAttractors(points,df):
   
+  
+  minDensity=df.minDensity
+  maxDensity=df.maxDensity
   strAttractor =""
   ATID=1
   gATID=[str(1)]
-  for i,point in enumerate(points):
+  dp=df.dp
+  density=dp[:,2]
+  growth=dp[:,3]
+  distances=DF.getl_D(density,growth,maxDensity)
+  
+  # Get # of density points that are not in shoreline
+  nxy=len(dp[dp[:,4]==0])
+  
+  for i,point in enumerate(df.dp):
     ATID +=1 
-    strAttractor +="Field[{0}] = Attractor;Field[{0}].NodesList = {{{1}}};".format(ATID,i)    
-    density=point[2]
-    growth=point[3]
-    n= np.maximum(np.floor(np.log(maxDensity/density)/np.log(growth)-1),1)
-    distance = (density*np.power(growth,n+1)-density)/(growth-1)      
+    pointID = point[5] if point[4]==0 else nxy+point[5] # Check if density is in shoreline or not
+    strAttractor +="Field[{0}] = Attractor;Field[{0}].NodesList = {{{1}}};".format(ATID,pointID)    
+    
+    # n= np.maximum(np.floor(np.log(maxDensity/density)/np.log(growth)-1),1)
+    # distance = (density*np.power(growth,n+1)-density)/(growth-1)
+    distance=distances[i]
+    _d=density[i]
     ATID +=1
-    strAttractor +="Field[{0}] = Threshold;Field[{0}].IField = {1};Field[{0}].DistMax = {4};Field[{0}].DistMin = 0;Field[{0}].LcMax = {3};Field[{0}].LcMin = {2:.1f};\n".format(ATID,ATID-1,density,maxDensity,distance)
+    strAttractor +="Field[{0}] = Threshold;Field[{0}].IField = {1};Field[{0}].DistMax = {4};Field[{0}].DistMin = 0;Field[{0}].LcMax = {3};Field[{0}].LcMin = {2:.1f};\n".format(ATID,ATID-1,_d,maxDensity,distance)
     gATID.append(str(ATID))
   
   ATID += 1
