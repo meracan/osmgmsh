@@ -1,0 +1,25 @@
+{
+  "name":"Arctic", 
+  "format":"slf", 
+  "localFolder":"../data/example2",
+  "minDensity":10,
+  "limitFineDensity":10000,
+  "maxDensity":30000,
+  "shorelineGrowth":1.2,
+  "simplification":{"isimplify":400,"buffer":4000,"fsimplify":100},
+  "defaultDomain":{
+      "center":[-90,67],
+      "radius":2000,
+      "density":[
+        [-68.482374,63.701277,10,1.05],
+        [-67.966538,63.394282,10,1.05]
+        ]
+  },
+  "input":{
+    "osm":"../data/water-polygons-split-4326.zip",
+    "sosm":"../data/simplified-water-polygons-split-3857.zip"
+  },
+  "comment":{
+    "time(s)":0
+  }
+}

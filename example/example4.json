@@ -1,0 +1,22 @@
+{
+  "name":"Halifax", 
+  "format":"slf", 
+  "localFolder":"../data/example4",
+  "minDensity":10,
+  "maxDensity":10000,
+  "shorelineGrowth":1.2,
+  "limitFineDensity":4000,
+  "simplification":{"isimplify":10,"buffer":1000,"fsimplify":10},
+  "defaultDomain":{
+      "center":[-63.553987,44.627934],
+      "radius":60,
+      "density":[[-63.553987,44.627934,10,1.2]]
+  },
+  "input":{
+    "osm":"../data/water-polygons-split-4326.zip",
+    "sosm":"../data/simplified-water-polygons-split-3857.zip"
+  },
+  "Comment":{
+    "time(s)":116
+  }
+}

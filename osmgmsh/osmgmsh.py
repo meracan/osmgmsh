@@ -13,145 +13,49 @@ from mshapely import DF
 from mshapely.misc import add_method
 from .file import File
 
-# from .io import createGEO,createMSH
-
-# #
-# # Create Gmsh
-# #
-# @add_method(GeometryCollection)
-# def msh(self,*args,**kwargs):
-#   return self.toShape().msh(*args,**kwargs)
-
-
-# @add_method([Point,MultiPoint,LineString,MultiLineString])
-# def msh(self,*args,**kwargs):
-#   return self
-  
-# @add_method(Polygon)
-# def msh(self,path,density,*args,**kwargs):
-#   geo = createGEO(self,path,density,*args,**kwargs)
-#   return createMSH(geo,path)
-
-# @add_method(MultiPolygon)
-# def msh(self,*args,**kwargs):
-#   geo=self.largest()
-#   geo.msh(*args,**kwargs)
-#   return geo
-
-
-# class File(object):
-#   def __init__(self,parent,name,fproj=None,fgeo=None,geoPath=None):
-#     self.name=name
-#     self.parent=parent
-#     if geoPath is None:
-#       geoPath=os.path.join(parent.localFolder,name+".geojson")
-    
-#     self.geoPath=geoPath
-#     self.projPath=self._projPath(geoPath)
-    
-#     self._fproj = fproj
-#     self._fgeo = fgeo
-#     self._proj = None
-#     self._geo = None
-    
-#     self.dependencies=None
-#     if fproj is not None:self.dependencies=fproj(None,None,getDependenciesOnly=True)
-#     if fgeo is not None:self.dependencies=fgeo(None,None,getDependenciesOnly=True)
-  
-#   @property
-#   def proj(self):
-#     if self._proj is None:
-#       if not os.path.exists(self.projPath):
-#         if self._fproj is not None:self._fproj(self.geoPath,self.projPath)
-#         else:
-#           self.geo
-#           self._toproj(self.geoPath,self.projPath)  
-#       self._proj = mshapely.readGeometry(self.projPath)
-#     return self._proj
-    
-#   @property
-#   def geo(self):
-#     if self._geo is None:
-#       if not os.path.exists(self.geoPath):
-#         if self._fgeo is not None:self._fgeo(self.geoPath,self.projPath)
-#         else:
-#           self.proj
-#           self._togeo(self.geoPath,self.projPath) 
-#       self._geo = mshapely.readGeometry(self.geoPath)
-#     return self._geo
-  
-  
-#   def delete(self):
-#     """
-#     Delete file and child dependencies
-    
-#     """
-#     if os.path.exists(self.geoPath):os.remove(self.geoPath)
-#     if os.path.exists(self.projPath):os.remove(self.projPath)
-    
-#     # Delete child dependencies
-#     for file_name in self.parent.listFiles:
-#         file = getattr(self.parent, file_name)
-#         if file.dependencies is not None and file.dependencies.contains(self.name):
-#           file.delete()
-    
-  
-#   def _projPath(self,path):
-#     """
-#     Get projected path of the output 
-#     """
-#     return "{}.proj.geojson".format(os.path.splitext(path)[0]) 
-  
-#   def _geoPath(self,path):
-#     """
-#     Get geographic path of the output 
-#     """
-#     return "{}.geojson".format(os.path.splitext(path)[0])
-
-#   def _toproj(self,geographicPath,projectedPath):
-#     """
-#     Transform geographic to projection
-#     """
-#     if not os.path.exists(geographicPath):raise Exception("{} does not exist".format(geographicPath))
-#     if os.path.exists(projectedPath):os.remove(projectedPath)
-#     OSM.ogr2ogrT(geographicPath,projectedPath,self.parent.geo,self.parent.proj)
-
-#   def _togeo(self,geographicPath,projectedPath):
-#     """
-#     Transform geographic to projection
-#     """
-#     if not os.path.exists(projectedPath):raise Exception("{} does not exist".format(projectedPath))
-#     if os.path.exists(geographicPath):os.remove(geographicPath)
-#     OSM.ogr2ogrT(projectedPath,geographicPath,self.parent.proj,self.parent.geo)
-
-
-
-
 class OSM(object):
   """
-  OSM instance prepares the osm coastline using spatial manipulation for gmsh, such as
+  OSM object prepares the osm coastline using spatial manipulation for gmsh, such as
   downloading,extracting,simplifying and resampling for gmsh.
+  It also creates the mesh using gmsh.
   
   Parameters
   ----------
-  The instance requires one object parameter that contains input and output variables.
-  
-  obj: object
-    path: object
-      osm:path, input
-      domain:path,input
-      density:path,input
-      osmDomain:path,output
-      osmSimplify:path,output
-      osmResample:path,output
-    minDensity:float,input
-    maxDensity:float,input
-    
+  obj:obj
+    name:str,
+    format:str,
+    localFolder:path
+    minDensity:float
+    maxDensity:float
+    shorelineGrowth:float
+    limitFineDensity:float
+    simplification:object
+      a:
+    defaultDomain:object
+      a:
+      b:
+    input:object
+      a:
+      b:
+    output:object
+      a:
+    pproj:str
+    pgeo:str
     
   Note
   ----
-  Any spatial manipulation is performed on the LAEA projection (north pole).
+  Any spatial manipulation is performed on the projected coordinate system.
   Results are converted back to geographic coordinates.
+  
+  Attributes
+  ----------
+  osm:zip, OSM fine resolution coastline
+  sosm:zip, Simplified OSM resolution coastline
+  domain: Polygon
+    Model domain
+  density:MultiPoint
+    MultiPoint of the density
+  
   """
   def __init__(self,obj):
     self.name = obj.get( 'name', "default")
@@ -167,7 +71,8 @@ class OSM(object):
     self.output = obj.get( 'output', {})
     self.pproj = pproj = obj.get( 'proj', "EPSG:3573")
     self.pgeo  = pgeo = obj.get( 'proj', "EPSG:4326")
-    
+    self.printCommands = obj.get( 'printCommands', False)
+    self.version=None
     
     # "+proj=laea +lat_0=90 +lon_0=-100 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m"
     self.togeo = partial(pyproj.transform,Proj(init=pproj),Proj(init=pgeo))
@@ -201,26 +106,66 @@ class OSM(object):
     self.osmFine=File('osmFine',parent=self,fproj=self._getOSMFine)
     self.osmCoarse=File('osmCoarse',parent=self,fproj=self._getOSMCoarse)
     self.osmCoarseZone=File('osmCoarseZone',parent=self,fproj=self._getOSMCoarseZone)
-    self.osmCoarseS=File('osmCoarseS',parent=self,fproj=self._getOSMCoarseS)
+    self.osmCoarseS=File('osmCoarseS',versioned=True,parent=self,fproj=self._getOSMCoarseS)
     
+    self.osmDomain=File('osmDomain',versioned=True,parent=self,fproj=self._getosmDomain)
+    self.osmSimplify=File('osmSimplify',versioned=True,parent=self,fproj=self._getosmSimplify)
     
-    self.osmDomain=File('osmDomain',parent=self,fproj=self._getosmDomain)
-    self.osmSimplify=File('osmSimplify',parent=self,fproj=self._getosmSimplify)
-    self.osmResample=File('osmResample',parent=self,fproj=self._getosmResample)  
-    self.osmMesh=File('osmMesh',parent=self,ext=".msh",fproj=self._getosmMesh)
-    self.osmMeshBoundaries=File('osmMeshBoundaries',parent=self,fgeo=self._getosmMeshBoundaries)
-    self.osmMeshEdges=File('osmMeshEdges',parent=self,fgeo=self._getosmMeshEdges)
-    self.meshmbtiles=File('mesh',parent=self,ext=".mbtiles",fgeo=self._getmbtiles)
+    self.osmResample=File('osmResample',versioned=True,parent=self,fproj=self._getosmResample)  
+    self.osmMesh=File('osmMesh',parent=self,versioned=True,ext=".msh",fproj=self._getosmMesh)
+    self.osmMeshBoundaries=File('osmMeshBoundaries',versioned=True,parent=self,fgeo=self._getosmMeshBoundaries)
+    self.osmMeshEdges=File('osmMeshEdges',versioned=True,parent=self,fgeo=self._getosmMeshEdges)
+    self.meshmbtiles=File('mesh',parent=self,versioned=True,ext=".mbtiles",fgeo=self._getmbtiles)
     
     #
     # Get list of File(s) within the OSM class
     # 
-    self.listFiles=[p for p in dir(OSM) if isinstance(getattr(OSM,p),property) and isinstance(getattr(self,p),File)]
-
+    self.listFiles=[p for p in dir(self) if isinstance(getattr(self,p),File)]
+    
+    # 
+    # Documentation
+    #
+    self.densityFineZone.__doc__=self._getdensityFineZone.__doc__
+    self.densityCoarseZone.__doc__=self._getdensityCoarseZone.__doc__
+    self.osmFine.__doc__=self._getOSMFine.__doc__
+    self.osmCoarse.__doc__=self._getOSMCoarse.__doc__
+    self.osmCoarseZone.__doc__=self._getOSMCoarseZone.__doc__
+    self.osmCoarseS.__doc__=self._getOSMCoarseS.__doc__
+    self.osmDomain.__doc__=self._getosmDomain.__doc__
+    self.osmSimplify.__doc__=self._getosmSimplify.__doc__
+    self.osmResample.__doc__=self._getosmResample.__doc__
+    self.osmMesh.__doc__=self._getosmMesh.__doc__
+    self.osmMeshBoundaries.__doc__=self._getosmMeshBoundaries.__doc__
+    self.osmMeshEdges.__doc__=self._getosmMeshEdges.__doc__
+    self.meshmbtiles.__doc__=self._getmbtiles.__doc__
  
+  def compute(self):
+    
+    
+    # print(os.path.exists(self.osmMesh.geoPath))
+    for name in self.listFiles:
+      file=getattr(self,name)
+      if file.versioned==True:
+        file._geo=None
+        file._proj=None
+    for name in self.listFiles:
+      file=getattr(self,name)
+      file.geo
+        
+
+  
+  def setSimplificaton(self,obj,version=None):
+    self.simplification=obj
+    self.version=version
+    self.compute()
+    
+    # for name in self.listFiles:
+    #   file=getattr(self,name)
+    #   if file.dependencies is not None and "simplification" in file.dependencies:
+    #     file.delete()
+    
   def _checkInput(self,input,name):
-    """
-    Check if input exist
+    """ Check if input exist
     """
     def pathExist(path):
       localFolder = self.localFolder
@@ -230,8 +175,7 @@ class OSM(object):
     
  
   def _getDefaultDomain(self):
-    """
-    Create default domain geojson
+    """ Create default domain geojson
     """
     obj = self.defaultDomain
     toproj =self.toproj
@@ -249,8 +193,7 @@ class OSM(object):
     
 
   def _getDefaultDensity(self):
-    """
-    Create default density geojson
+    """ Create default density geojson
     """
     obj = self.defaultDomain
     minDensity = self.minDensity
@@ -302,11 +245,12 @@ class OSM(object):
     return buffers
 
   def _name(self,path):
-      return os.path.splitext(os.path.basename(path))[0]
+    """ Extract basename without extention
+    """
+    return os.path.splitext(os.path.basename(path))[0]
 
   def _getOSMFine(self,projectedPath=None,dependencies = ['densityFineZone']):
-    """
-    Extract fine osm coastline within the densityZone.
+    """ Extract fine osm coastline within the densityZone.
     """
     densityFineZone=self.densityFineZone
     densityFineZone.proj
@@ -316,21 +260,18 @@ class OSM(object):
     zipname = 'water-polygons-split-4326/water_polygons.shp'
     zipPath = "\"/vsizip/" + osmPath + "/" + zipname + "\""
     
-    # 1 point=>1min
-    t=tqdm(total=1)
     zoneName = os.path.splitext(os.path.basename(densityFineZone.projPath))[0]
     zone = densityFineZone.projPath
     pg_sql = "\"With osm AS(SELECT ST_Transform(water_polygons.geometry,{2}) as geo FROM water_polygons) SELECT osm.geo FROM osm,'{0}'.'{1}' zone WHERE ST_Intersects(osm.geo, zone.geometry);\"".format(zone,zoneName,epsg)
     command = "ogr2ogr -skipfailures -f \"GeoJSON\" {0} -nln \"{3}\" -nlt POLYGON -dialect \"SQLITE\" -sql {2} {1}".format(projectedPath,zipPath,pg_sql,self._name(projectedPath))
-    print(command)
+    if self.printCommands: print(command)
+    t=tqdm(total=1)
     subprocess.call(command, shell=True)
-    t.update(1)
-    t.close()
-
+    t.update(1);t.close()
 
   def _getOSMCoarse(self,projectedPath=None,dependencies = ['domain']):
     """
-    Extract osm coastline from zip file and simplify based on extent.
+    Extract osm coastline from zip file.
     This avoids unpacking the zip file.
     """
     domain=self.domain
@@ -349,12 +290,12 @@ class OSM(object):
     
     
     
-    t=tqdm(total=1)
+    
     command = "ogr2ogr -skipfailures -f \"GeoJSON\" {0} -nln \"{3}\" -dialect \"SQLITE\" -sql {1} {2}".format(projectedPath,pg_sql,zipPath,self._name(projectedPath))
-    print(command)
+    if self.printCommands: print(command)
+    t=tqdm(total=1)
     subprocess.call(command, shell=True)
-    t.update(1)
-    t.close()
+    t.update(1);t.close()
 
   def _getOSMCoarseZone(self,projectedPath=None,dependencies = ['domain','osmCoarse']):
     """
@@ -367,16 +308,12 @@ class OSM(object):
     osmCoarse.proj
     densityCoarseZone.proj
     
-    
     pg_sql = "\"SELECT ST_Intersection(A.geometry,B.geometry) as geometry FROM '{0}'.'{1}' A,'{2}'.'{3}' B;\"".format(osmCoarse.projPath,self._name(osmCoarse.projPath),densityCoarseZone.projPath,self._name(densityCoarseZone.projPath))
-    
-    
-    t=tqdm(total=1)
     command = "ogr2ogr -skipfailures -f \"GeoJSON\" {0} -nln \"{3}\" -dialect \"SQLITE\" -sql {1} {2}".format(projectedPath,pg_sql,osmCoarse.projPath,self._name(projectedPath))
-    print(command)
+    if self.printCommands: print(command)
+    t=tqdm(total=1)
     subprocess.call(command, shell=True)
-    t.update(1)
-    t.close()
+    t.update(1);t.close()
     
     
   def _getOSMCoarseS(self,projectedPath=None,dependencies=['osmCoarse','simplification']):
@@ -406,13 +343,12 @@ class OSM(object):
     pg_sql = "\"With one AS(SELECT ST_Simplify(ST_Buffer(ST_Buffer(ST_Simplify(A.geometry,{2}),-{3}),{3}),{4}) as geometry FROM '{0}'.'{1}' A) SELECT one.geometry from one WHERE one.geometry is not null;\"".format(osmPath,self._name(osmPath),isimplify,buffering,fsimplify)
     
     
-    t=tqdm(total=1)
-    command = "ogr2ogr -skipfailures -f \"GeoJSON\" {0} -nln \"{3}\" -dialect \"SQLITE\" -sql {1} {2}".format(projectedPath,pg_sql,osmPath,self._name(projectedPath))
     
-    print(command)
+    command = "ogr2ogr -skipfailures -f \"GeoJSON\" {0} -nln \"{3}\" -dialect \"SQLITE\" -sql {1} {2}".format(projectedPath,pg_sql,osmPath,self._name(projectedPath))
+    if self.printCommands: print(command)
+    t=tqdm(total=1)
     subprocess.call(command, shell=True)
-    t.update(1)
-    t.close()    
+    t.update(1);t.close()    
     
 
   def _getosmDomain(self,projectedPath=None,dependencies = ['domain','osmCoarseS']):
@@ -428,11 +364,10 @@ class OSM(object):
     domain=domain.proj.geometry
     
     t=tqdm(total=1)
-    geo=geo.largest()#.removeHoles(10000000)
-    
-    geo=geo.intersection(domain);t.update(1)
+    geo=geo.largest().removeHoles(np.pi*np.power(1000,2))
+    geo=geo.intersection(domain)
     geo.write(projectedPath)
-    t.close()
+    t.update(1);t.close()
     
     
     return geo
@@ -448,13 +383,13 @@ class OSM(object):
     osmCoarseZone = self.osmCoarseZone
     
     geo=osmDomain.proj.geometry
-    geo=geo.dsimplify(df,fine=osmFine.proj.geometry,coarse=osmCoarseZone.proj.geometry)
+    geo=geo.dsimplify(df,limitFineDensity=self.limitFineDensity,fine=osmFine.proj.geometry,coarse=osmCoarseZone.proj.geometry)
     geo=geo.largest()
-    geo.write(projectedPath)
+    geo.write(projectedPath).plot().savePlot(os.path.splitext(projectedPath)[0]+".png")
     return geo
     
     
-  def _getosmResample(self,projectedPath=None,dependencies = ['density','osmSimplify','minDensity','maxDensity','growth']):
+  def _getosmResample(self,projectedPath=None,dependencies = ['density','osmSimplify','minDensity','maxDensity','shorelineGrowth']):
     """
     Resample osm shoreline using interior nearest points and density growth field.
     """
@@ -474,7 +409,7 @@ class OSM(object):
     
     df.add(newdensity)
     geo=geo.dresample(df,progress=True)
-    geo.write(projectedPath)
+    geo.write(projectedPath).plot().savePlot(os.path.splitext(projectedPath)[0]+".png")
     return geo
   
   def _getosmMesh(self,projectedPath=None,dependencies = ['density','osmResample','minDensity','maxDensity','shorelineGrowth']):
@@ -489,17 +424,22 @@ class OSM(object):
     
     geo=osmResample.proj.geometry
     maxDistance = DF.getl_D(minDensity,shorelineGrowth,maxDensity)
-    density=geo.inearest(maxDistance=maxDistance,angle=90)
-    density[:,2]=DF.getD_l(minDensity,shorelineGrowth,density[:,2],-1)
-    density=np.column_stack((density,np.ones(len(density))*1.2))
-    df.add(density)
+    d=geo.inearest(maxDistance=maxDistance,angle=30,progress=True)
+    density=DF.getD_l(minDensity,shorelineGrowth,d[:,2],1)
+    _density=geo.minSegment()[:,-3]
+    density=np.minimum(density,_density)
+    
+    density=np.column_stack((d[:,:2],density,np.ones(len(density))*self.shorelineGrowth))
+    df=DF(density,minDensity=self.minDensity,maxDensity=self.maxDensity,minGrowth=self.shorelineGrowth,progress=True)
     geo.msh(projectedPath,df).plot().savePlot(os.path.splitext(projectedPath)[0]+".png")
   
   def _getosmMeshBoundaries(self,geographicPath=None,dependencies=['osmMesh']):
     """
     """
+    
     mesh=self.osmMesh.geo
     mesh.boundaries.write(geographicPath)
+  
   def _getosmMeshEdges(self,geographicPath=None,dependencies=['osmMesh']):
     """
     """
@@ -507,14 +447,15 @@ class OSM(object):
     mesh.geoedges.write(geographicPath)
   
   def _getmbtiles(self,geographicPath,dependencies=['osmMeshBoundaries','osmMeshEdges']):
-    
     edgembitle=os.path.join(os.path.dirname(geographicPath),"edges.mbtiles")
     boundarymbtile=os.path.join(os.path.dirname(geographicPath),"boundaries.mbtiles")
     if os.path.exists(edgembitle):os.remove(edgembitle)
     if os.path.exists(boundarymbtile):os.remove(boundarymbtile)
-    command = "tippecanoe -z14 -o {0} -l edges {1};tippecanoe  -z14 -o {2} -l boundaries {3};tile-join {0} {2} -o {4}".format(edgembitle,self.osmMeshEdges.geoPath,boundarymbtile,self.osmMeshBoundaries.geoPath,geographicPath)
-    print(command)
+    command = "tippecanoe -z12 -o {0} -an -l edges {1};tippecanoe  -z12 -o {2} -an -l boundaries {3};tile-join {0} {2} -o {4}".format(edgembitle,self.osmMeshEdges.geoPath,boundarymbtile,self.osmMeshBoundaries.geoPath,geographicPath)
+    if self.printCommands: print(command)
     subprocess.call(command, shell=True)
+  
+  
   @staticmethod
   def transform_geo(project,geo):
     """
@@ -536,7 +477,7 @@ class OSM(object):
       inputPath = "\"/vsizip/" + inputPath + "/" + zipname + "\""
     
     command = "ogr2ogr -skipfailures -f \"GeoJSON\" {0} -s_srs \"{1}\" -t_srs \"{2}\" {3}".format(output,s_srs,t_srs,inputPath)
-    print(command)
+    # print(command)
     subprocess.call(command, shell=True)
     
     
@@ -568,10 +509,3 @@ class OSM(object):
             f.write(chunk)
       t.close()
     return osmPath
-  
-  
-  # @staticmethod
-  # def write(*args,**kwargs):
-  #   """
-  #   """
-  #   writeGeometry(*args, **kwargs)
