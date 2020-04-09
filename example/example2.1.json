@@ -3,21 +3,16 @@
   "format":"slf", 
   "localFolder":"../data/example2",
   "minDensity":10,
-  "limitFineDensity":1000,
-  "limitCoarseDensity":10000,
+  "limitFineDensity":10000,
   "maxDensity":100000,
   "shorelineGrowth":1.2,
-  "simplification":{"isimplify":1000,"buffer":10000,"fsimplify":1000},
+  "simplification":{"isimplify":400,"buffer":4000,"fsimplify":100},
   "defaultDomain":{
       "center":[-90,67],
       "radius":2000,
       "density":[
         [-68.482374,63.701277,10,1.05],
-        [-67.966538,63.394282,100,1.05],
-        [-71.969897,61.618344,10,1.05],
-        [-76.592826,64.221783,10,1.05],
-        [-81.707574,69.383033,10,1.05],
-        [-82.568271,69.712629,100,1.05]
+        [-67.966538,63.394282,10,1.05]
         ]
   },
   "input":{

@@ -7,10 +7,14 @@ def run_example(path):
   with open(path) as f:
     obj = json.load(f)
     osm=OSM(obj)
+    # osm.osmCoarseZone.geo
+    # osm.osmSimplify.geo
+    # osm.osmResample.geo
     # osm.osmMesh.geo
+    # osm.meshmbtiles.geo
     osm.compute()
   print(time.time()-start)
     
     
 if __name__ == "__main__":
-  run_example('example/example2.json')
+  run_example('example/GulfStLawrence.json')

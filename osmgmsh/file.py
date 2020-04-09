@@ -100,7 +100,7 @@ class File(object):
           self.geo
           if self._fproj is None and self._geo is None:raise Exception("Data does not exist and does not know how to get it")
           self._toproj(self.geoPath,self.projPath)  
-      self._proj = self.read(self.projPath)
+      self._proj=lambda :self.read(self.projPath)
     return self._proj
     
   @property
@@ -118,7 +118,7 @@ class File(object):
           self.proj
           if self._fproj is None and self._geo is None:raise Exception("Data does not exist and does not know how to get it")
           self._togeo(self.geoPath,self.projPath) 
-      self._geo = self.read(self.geoPath)
+      self._geo=lambda :self.read(self.geoPath)
     return self._geo
   
   def read(self,path):
@@ -196,5 +196,5 @@ class File(object):
       inputPath = "\"/vsizip/" + inputPath + "/" + zipname + "\""
     
     command = "ogr2ogr -skipfailures -f \"GeoJSON\" {0} -s_srs \"{1}\" -t_srs \"{2}\" {3}".format(output,s_srs,t_srs,inputPath)
-    # print(command)
+    print(command)
     subprocess.call(command, shell=True)

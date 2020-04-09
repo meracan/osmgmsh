@@ -1,0 +1,28 @@
+{
+  "name":"GulfStLawrence", 
+  "format":"slf", 
+  "localFolder":"../data/GulfStLawrence",
+  "minDensity":10,
+  "maxDensity":100000,
+  "shorelineGrowth":1.2,
+  "limitFineDensity":1000,
+  "limitCoarseDensity":10000,
+  "maxDensity":100000,
+  "shorelineGrowth":1.2,
+  "simplification":{"isimplify":200,"buffer":2000,"fsimplify":200},
+  "defaultDomain":{
+      "center":[-63.,49.],
+      "radius":500,
+      "density":[
+        [-64.665015,47.733009,10,1.05],
+        [-64.477426,47.973775,10,1.025]
+        ]
+  },
+  "input":{
+    "osm":"../data/water-polygons-split-4326.zip",
+    "sosm":"../data/simplified-water-polygons-split-3857.zip"
+  },
+  "comment":{
+    "time(s)":96
+  }
+}
