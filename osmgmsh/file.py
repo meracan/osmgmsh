@@ -107,9 +107,7 @@ class File(object):
   def geo(self):
     """ Get geographic file object
     """
-    
     if self._geo is None:
-      
       if not os.path.exists(self.geoPath):
         if self._fgeo is not None:
           self._getDenpendency()
